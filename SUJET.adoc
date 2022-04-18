@@ -1,0 +1,136 @@
+= Contrôle Continu de Web-services, 2021-2022
+:title: Contrôle Continu de Web-services, 2021-2022
+:docyear: 2022
+
+
+== Consignes
+
+=== Dépôt GIT
+
+Vous devez cloner ce dépôt GIT au début de l'épreuve, et rendre le résultat de votre travail sur ce même dépôt avant la fin de l'épreuve (`git add` + `git commit` + `git push`).
+
+IMPORTANT: *Seule la branche `master` sera prise en compte pour l'évaluation finale.*
+Si vous créez d'autres branches de travail, pensez à fusionner vers la branche _master_ avant la fin de l'épreuve.
+
+
+=== Travail demandé
+
+- Vous devez développer un service REST correspondant à la description ci-dessous.
+Pour cela, vous devez :
+. *Implémenter les méthodes de la façade du modèle*, dans la classe `cc.modele.FacadeModele`. _Vous ne devez pas modifier la signature des méthodes proposées, mais vous pouvez ajouter d'autres méthodes si vous le jugez utile._
+. *Implémenter le contrôleur* du service REST, dans la classe `cc.controleur.controleur`.
+. *Configurer la sécurité* du service REST, *_avec authentification en mode Basic_* des utilisateurs du service. _Sans cette configuration, votre service REST ne fonctionnera pas !_
+
+
+=== Outils à disposition
+
+- Pour tester vos implémentations, vous avez à disposition deux classes de tests, disponibles dans `test/java` :
+* `cc.modele.FacadeModeleTest` : tests fonctionnels pour le modèle.
+* `cc.ControleurTest` : tests fonctionnels pour le contrôleur.
+* Pour lancer ces tests, vous pouvez, au choix :
+** Exécuter `Maven > Lifecycle > test`, pour exécuter tous les tests de l'application ;
+** Exécuter à la main chaque classe de tests, en cliquant sur la petite flèche verte située à côté du nom de la classe (quand vous êtes dans le fichier de cette classe).
+
+- La classe utilitaire `utils.EmailUtils` fournit une méthode `verifier(String adresseEmail)`, pour vérifier le bon format d'une adresse e-mail.
+
+- Les classes métiers du modèle sont déjà développées, dans `modele.data`. _Vous ne devez pas modifier le type des attributs ni l'implémentation des méthodes fournies, mais vous pouvez ajouter des éléments (attributs, méthodes, annotations,...) si vous le jugez utile_.
+
+
+=== Évaluation de votre rendu
+
+Votre rendu sera évalué à l'aide de tests fonctionnels, similaires aux tests qui vous sont fournis, mais avec un jeu de données différent et des scénarios de tests plus poussés.
+
+Bien entendu, ces tests se limiteront strictement aux fonctionnalités qui vous sont demandées ; ils ont pour objectif de valider l'adéquation de votre service REST avec les fonctionnalités attendues, en tenant compte des situations d'exception.
+
+
+== Service REST à développer
+
+=== Contexte
+
+
+Le responsable du module projet en a marre de créer des pages sur
+pdicost pour gérer les inscriptions des étudiants à des projets.
+Il décide de mettre en place un web-service.
+Ce web-service permet aux étudiants et professeurs de s'inscrire
+avec leur mail universitaire. A partir de ce mail, deux rôles sont
+mis en évidence : le rôle PROFESSEUR et le rôle ETUDIANT.
+
+
+
+=== Opérations proposées par le service REST
+
+L'API de votre service REST doit proposer les opérations suivantes, en respectant les caractéristiques décrites :
+
+- `POST /api/gestionprojets/utilisateur` ->  *inscription d'un⋅e nouveau/nouvelle utilisateur.trice*.
+* Ne nécessite aucune authentification.
+* Requête avec un objet de type *UtilisateurDTO* dans le body :
+** `login` : identifiant du compte à créer. _L'identifiant doit être une adresse e-mail valide_.
+** `password` : mot de passe du compte à créer. _Le mot de passe ne doit pas être vide_.
+* Réponse :
+** `201` -> Le compte a bien été créé. Nous avons la location de la resource et ainsi que l'objet Utilisateur crée dans le body de la réponse
+** `406` -> Les informations fournies sont incorrectes.
+** `409` -> Un compte existe déjà avec le même _e-mail_.
+
+- `GET /api/gestionprojets/utilisateurs/{idUtilisateur}` -> *consultation du compte d'un⋅e utilisateur⋅trice*.
+* Nécessite d'être authentifié. Un professeur peut alors consulter le compte de n'importe quel⋅le utilisateur⋅trice. Un étudiant de
+peut que consulter son propre compte.
+* Requête sans contenu particulier.
+* Réponse :
+** `200` -> La requête est acceptée. Le corps de la réponse doit contenir, au format JSON :
+*** les informations d'un compte utilisateur
+** `403` -> si un étudiant authentifié essaie de récupérer un compte qui n'est pas le sien
+** `404` -> Le compte utilisateur n'existe pas.
+
+
+- `GET /api/gestionprojets/utilisateurs` -> *consultation de tous les comptes utilisateur*.
+* Nécessite d'être authentifié et d'être un professeur.
+* Requête sans contenu particulier.
+* Réponse :
+** `200` -> La requête est acceptée. Le corps de la réponse doit contenir, au format JSON, une liste de comptes
+** `403` -> si un étudiant authentifié essaie de récupérer tous les comptes.
+
+
+- `POST /api/gestionprojets/projets` ->  *création d'un nouveau projet*.
+* Uniquement les professeurs peuvent créer un projet.
+* Requête nécessitant les paramètres :
+** `nomProjet` : nom du projet (les doublons sont autorisés) mais il
+doit *obligatoirement* être non-vide
+** `nbGroupes` : nombre de groupes à créer au sein du projet. Doit obligatoirement être strictement positif
+* Réponse :
+** `201` -> Le projet a bien été créé. Nous avons la location de la resource et ainsi que l'objet Projet créé dans le body de la réponse
+** `406` -> Les informations fournies sont incorrectes.
+
+
+
+
+- `GET /api/gestionprojets/projets/{idprojet}` ->
+* Nécessite d'être authentifié
+* Requête sans contenu particulier.
+* Réponse :
+** `200` -> La requête est acceptée. Le corps de la réponse doit contenir, au format JSON, le projet récupéré ;
+** `404` -> Le projet n'existe pas.
+
+
+- `GET /api/gestionprojets/projets/{idprojet}/groupes` ->
+* Nécessite d'être authentifié
+* Requête sans contenu particulier.
+* Réponse :
+** `200` -> La requête est acceptée. Le corps de la réponse doit contenir, au format JSON, les groupes du  projet concerné ;
+** `404` -> Le projet n'existe pas.
+
+
+- `PUT /api/projets/{idProjet}/groupes/{idGroupe}` -> *permet à un étudiant de rejoindre un groupe s'il n'est pas déjà inscrit dans un groupe du projet*.
+* Nécessite d'être authentifié en tant qu'étudiant (rôle `ETUDIANT`).
+* Requête sans contenu particulier.
+* Réponse :
+** `202` -> L'étudiant a bien été inscrit dans le groupe souhaité.
+** `404` -> le projet n'existe pas ou l'identifiant de groupe ne correspond à aucun groupe du projet visé
+** `409` -> L'étudiant est déjà inscrit dans un groupe.
+
+- `DELETE /api/projets/{idProjet}/groupes/{idGroupe}` -> *permet à un étudiant de quitter un groupe s'il est bien inscrit dans le groupe du projet mentionné*.
+* Nécessite d'être authentifié en tant qu'étudiant (rôle `ETUDIANT`).
+* Requête sans contenu particulier.
+* Réponse :
+** `202` -> L'étudiant a bien quitté le groupe.
+** `404` -> le projet n'existe pas ou l'identifiant de groupe ne correspond à aucun groupe du projet visé
+** `406` -> L'étudiant n'est pas inscrit dans le groupe qu'il veut quitter
