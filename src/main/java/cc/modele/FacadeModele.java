@@ -2,13 +2,29 @@ package cc.modele;
 
 import cc.modele.data.*;
 import cc.modele.data.exceptions.*;
+import cc.utils.EmailUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 @Component
 public class FacadeModele {
 
+
+    private List<Utilisateur> utilisateurs;
+
+    private List<Projet> projets;
+
+    public FacadeModele(){
+        this.utilisateurs = new ArrayList<>();
+        this.projets = new ArrayList<>();
+    }
     /**
      * Permet d'enregistrer un utilisateur
      * @param login : login de l'utilisateur (email)
@@ -21,7 +37,27 @@ public class FacadeModele {
 
     public int enregistrerUtilisateur(String login, String password)
             throws DonneeManquanteException, EmailDejaPrisException, EmailMalFormeException {
-        return 0;
+        if (Objects.isNull(login))
+            throw new DonneeManquanteException();
+        else if(login.isBlank())
+            throw new DonneeManquanteException();
+        else if(!EmailUtils.verifier(login))
+            throw new EmailMalFormeException();
+        else if (Objects.isNull(password))
+            throw new DonneeManquanteException();
+        else if(password.isBlank())
+            throw new DonneeManquanteException();
+        else{
+            boolean emailAlreadyExist = utilisateurs.stream().anyMatch(u -> u.getLogin().equals(login));
+            if (emailAlreadyExist){
+                throw new EmailDejaPrisException();
+            }
+            else {
+                Utilisateur user = new Utilisateur(login,password);
+                utilisateurs.add(user);
+                return user.getId();
+            }
+        }
     }
 
     /**
@@ -31,7 +67,10 @@ public class FacadeModele {
      * @throws UtilisateurInexistantException : Aucun utilisateur existe avec cet identifiant
      */
     public Utilisateur getUtilisateurByIntId(int id) throws UtilisateurInexistantException {
-        return null;
+        if(!utilisateurs.stream().anyMatch(u -> u.getId() == id))
+            throw new UtilisateurInexistantException();
+        else
+            return utilisateurs.stream().filter(u ->  u.getId() == id).collect(Collectors.toList()).get(0);
     }
 
 
@@ -42,8 +81,10 @@ public class FacadeModele {
      * @throws UtilisateurInexistantException : Aucun utilisateur existe avec cet email
      */
     public Utilisateur getUtilisateurByEmail(String login) throws UtilisateurInexistantException {
-        return null;
-
+        if(!utilisateurs.stream().anyMatch(u -> u.getLogin().equals(login)))
+            throw new UtilisateurInexistantException();
+        else
+            return utilisateurs.stream().filter(u ->  u.getLogin().equals(login)).collect(Collectors.toList()).get(0);
     }
 
 
@@ -53,6 +94,7 @@ public class FacadeModele {
      */
 
     public void reInitFacade(){
+        Utilisateur.resetID();
     }
 
     /**
@@ -61,7 +103,7 @@ public class FacadeModele {
      */
     public Collection<Utilisateur> getAllUtilisateurs() {
 
-        return null;
+        return this.utilisateurs;
     }
 
     /**
@@ -74,7 +116,20 @@ public class FacadeModele {
      * @throws NbGroupesIncorrectException : le nombre de groupes n'est pas > 0
      */
     public Projet creationProjet(Utilisateur utilisateur,String nomProjet, int nbGroupes) throws DonneeManquanteException, NbGroupesIncorrectException {
-        return null;
+        if(Objects.isNull(nomProjet))
+            throw new DonneeManquanteException();
+        else if (nomProjet.isBlank())
+            throw new DonneeManquanteException();
+        else if(nbGroupes <= 0)
+            throw new NbGroupesIncorrectException();
+        else if(Objects.isNull(utilisateur))
+            throw new DonneeManquanteException();
+        else{
+            Projet p = new Projet(nomProjet,utilisateur,nbGroupes);
+            this.projets.add(p);
+            return p;
+        }
+
     }
 
     /**
@@ -84,7 +139,10 @@ public class FacadeModele {
      * @throws ProjetInexistantException
      */
     public Projet getProjetById(String idProjet) throws ProjetInexistantException {
-        return null;
+        if(!this.projets.stream().anyMatch(p -> p.getIdProjet().equals(idProjet)))
+            throw new ProjetInexistantException();
+        else
+            return this.projets.stream().filter(p -> p.getIdProjet().equals(idProjet)).collect(Collectors.toList()).get(0);
     }
 
 
@@ -100,7 +158,7 @@ public class FacadeModele {
      * @throws EtudiantDejaDansUnGroupeException
      */
     public void rejoindreGroupe(Utilisateur utilisateur, String idProjet,int idGroupe) throws ProjetInexistantException, MauvaisIdentifiantDeGroupeException, EtudiantDejaDansUnGroupeException {
-
+        this.getProjetById(idProjet).rejoindreGroupe(utilisateur,idGroupe);
     }
 
     /**
@@ -114,7 +172,7 @@ public class FacadeModele {
      * @throws EtudiantPasDansLeGroupeException
      */
     public void quitterGroupe(Utilisateur utilisateur, String idProjet, int idGroupe) throws ProjetInexistantException, MauvaisIdentifiantDeGroupeException, EtudiantPasDansLeGroupeException {
-
+        this.getProjetById(idProjet).quitterGroupe(utilisateur,idGroupe);
     }
 
 
@@ -125,6 +183,6 @@ public class FacadeModele {
      * @throws ProjetInexistantException
      */
     public Groupe[] getGroupeByIdProjet(String idProjet) throws ProjetInexistantException {
-        return new Groupe[0];
+        return this.getProjetById(idProjet).getGroupes();
     }
 }
