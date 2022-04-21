@@ -1,132 +1,96 @@
 package cc.controleur;
 
-import cc.modele.*;
+
+import cc.modele.FacadeModele;
 import cc.modele.data.Projet;
 import cc.modele.data.Utilisateur;
 import cc.modele.data.UtilisateurDTO;
 import cc.modele.data.exceptions.*;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.userdetails.User;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.net.URI;
-import java.util.Arrays;
+import java.security.Principal;
 import java.util.Collection;
-import java.util.List;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/gestionprojets")
 public class Controleur {
 
-    private final FacadeModele facadeModele;
+
+    @Autowired
+    FacadeModele facadeModele;
 
 
-    public Controleur(FacadeModele facadeModele) {
-        this.facadeModele = facadeModele;
-    }
 
-    @PostMapping("/utilisateurs")
-    public ResponseEntity<Utilisateur> createUtilisateur(@RequestBody UtilisateurDTO utilisateurDTO){
+    @PostMapping( "/utilisateur")
+    public ResponseEntity<Utilisateur> creerUtilisateur(@RequestBody UtilisateurDTO utilisateurDTO){
         try {
-            int  id = this.facadeModele.enregistrerUtilisateur(utilisateurDTO.getLogin(),utilisateurDTO.getPassword());
-            URI location = ServletUriComponentsBuilder
-                    .fromCurrentRequest().path("/{idUtilisateur}")
-                    .buildAndExpand(id).toUri();
-            return ResponseEntity.created(location).body(this.facadeModele.getUtilisateurByIntId(id));
-        } catch (DonneeManquanteException | EmailMalFormeException e) {
-            return ResponseEntity.status(HttpStatus.NOT_ACCEPTABLE).build();
+            int id = facadeModele.enregistrerUtilisateur(utilisateurDTO.getLogin(),utilisateurDTO.getPassword());
+            URI location= ServletUriComponentsBuilder.fromCurrentRequest().path("/{id}").buildAndExpand(id).toUri();
+
+            Utilisateur utilisateur=facadeModele.getUtilisateurByIntId(id);
+
+            return  ResponseEntity.created(location).body(utilisateur);
+        } catch (DonneeManquanteException e) {
+            return  ResponseEntity.status(406).build();
         } catch (EmailDejaPrisException e) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).build();
+            return  ResponseEntity.status(409).build();
+        } catch (EmailMalFormeException e) {
+            return  ResponseEntity.status(406).build();
         } catch (UtilisateurInexistantException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            return ResponseEntity.status(404).build();
         }
     }
-
     @GetMapping("/utilisateurs/{idUtilisateur}")
-    public ResponseEntity<Utilisateur> getProfil(@AuthenticationPrincipal User user, @PathVariable int idUtilisateur){
-
-
+    public ResponseEntity<Utilisateur> obtenirUtilisateur(Principal principal,@PathVariable int idUtilisateur){
         try {
-            Utilisateur utilisateur = this.facadeModele.getUtilisateurByEmail(user.getUsername());
-            if(utilisateur.getId() == idUtilisateur)
-                return ResponseEntity.ok(utilisateur);
-            else if (Arrays.stream(utilisateur.getRoles()).anyMatch(r -> r.equals("PROFESSEUR")))
-                return ResponseEntity.ok(this.facadeModele.getUtilisateurByIntId(idUtilisateur));
-            else
-                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-
+            String email= principal.getName();
+            Utilisateur utilisateurAuthentifie=facadeModele.getUtilisateurByEmail(email);
+            Utilisateur utilisateurQuiDemandeLaRessource=facadeModele.getUtilisateurByIntId(idUtilisateur);
+            if (utilisateurAuthentifie.getId()!=utilisateurQuiDemandeLaRessource.getId()){
+                return ResponseEntity.status(403).build();
+            }
+            return ResponseEntity.ok().body(utilisateurQuiDemandeLaRessource);
         } catch (UtilisateurInexistantException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            return ResponseEntity.notFound().build();
         }
     }
 
     @GetMapping("/utilisateurs")
-    public ResponseEntity<Collection<Utilisateur>> getAllUtilisateurs(){
-        return ResponseEntity.ok(this.facadeModele.getAllUtilisateurs());
-    }
+    public ResponseEntity<Collection<Utilisateur>> obtenirUtilisateurs(Principal principal){
 
-    @PostMapping("/projets")
-    public ResponseEntity<Projet> createProject(@AuthenticationPrincipal User user, @RequestParam String nomProjet, @RequestParam int nbGroupes){
         try {
-            Utilisateur utilisateur = this.facadeModele.getUtilisateurByEmail(user.getUsername());
-            Projet p = this.facadeModele.creationProjet(utilisateur,nomProjet,nbGroupes);
-            URI location = ServletUriComponentsBuilder
-                    .fromCurrentRequest().path("/{idprojet}")
-                    .buildAndExpand(p.getIdProjet()).toUri();
-            return ResponseEntity.created(location).body(p);
+            String email= principal.getName();
+            Utilisateur utilisateurAuthentifie=facadeModele.getUtilisateurByEmail(email);
+            String[] roles= utilisateurAuthentifie.getRoles();
+            if(roles[0]!="PROFESSEUR") return ResponseEntity.status(403).build();
+            return ResponseEntity.ok().body(facadeModele.getAllUtilisateurs());
         } catch (UtilisateurInexistantException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
-        } catch (DonneeManquanteException | NbGroupesIncorrectException e) {
-            return ResponseEntity.status(HttpStatus.NOT_ACCEPTABLE).build();
+            return ResponseEntity.notFound().build();
         }
     }
 
-    @GetMapping("/projets/{idprojet}")
-    public ResponseEntity<Projet> getProjet(@PathVariable String idprojet){
+    @PostMapping( "/projets")
+    public ResponseEntity<Projet> creerProjet(Principal principal,@RequestParam String nomProjet,@RequestParam int nbGroupe){
         try {
-            return ResponseEntity.ok(this.facadeModele.getProjetById(idprojet));
-        } catch (ProjetInexistantException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
-        }
-    }
-
-    @PutMapping("/projets/{idProjet}/groupes/{idGroupe}")
-    public ResponseEntity rejoindreGroupe(@AuthenticationPrincipal User user, @PathVariable String idProjet, @PathVariable int idGroupe){
-        try {
-            Utilisateur utilisateur = this.facadeModele.getUtilisateurByEmail(user.getUsername());
-            this.facadeModele.rejoindreGroupe(utilisateur, idProjet, idGroupe);
-            return ResponseEntity.status(HttpStatus.ACCEPTED).build();
+            String email= principal.getName();
+            Utilisateur utilisateurAuthentifie=facadeModele.getUtilisateurByEmail(email);
+            String[] roles= utilisateurAuthentifie.getRoles();
+            if (roles[0]!="PROFESSEUR") return ResponseEntity.status(401).build();
+            Projet projet = facadeModele.creationProjet(utilisateurAuthentifie, nomProjet, nbGroupe);
+            URI location= ServletUriComponentsBuilder.fromCurrentRequest().path("/{id}").buildAndExpand(projet.getIdProjet()).toUri();
+            return  ResponseEntity.created(location).body(projet);
         } catch (UtilisateurInexistantException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
-        } catch (ProjetInexistantException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
-        } catch (MauvaisIdentifiantDeGroupeException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
-        } catch (EtudiantDejaDansUnGroupeException e) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).build();
+            return ResponseEntity.status(404).build();
+        } catch (DonneeManquanteException e) {
+            return  ResponseEntity.status(406).build();
+        } catch (NbGroupesIncorrectException e) {
+            return  ResponseEntity.status(406).build();
         }
     }
 
-    @DeleteMapping("/projets/{idProjet}/groupes/{idGroupe}")
-    public ResponseEntity quitterGroupe(@AuthenticationPrincipal User user, @PathVariable String idProjet, @PathVariable int idGroupe) {
 
-        try {
-            Utilisateur utilisateur = this.facadeModele.getUtilisateurByEmail(user.getUsername());
-            this.facadeModele.quitterGroupe(utilisateur, idProjet, idGroupe);
-            return ResponseEntity.status(HttpStatus.ACCEPTED).build();
-        } catch (UtilisateurInexistantException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
-        } catch (ProjetInexistantException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
-        } catch (MauvaisIdentifiantDeGroupeException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
-        } catch (EtudiantPasDansLeGroupeException e) {
-            return ResponseEntity.status(HttpStatus.NOT_ACCEPTABLE).build();
-        }
-    }
 }
