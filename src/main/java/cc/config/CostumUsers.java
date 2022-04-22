@@ -8,14 +8,12 @@ import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+
 
 public class CostumUsers implements UserDetailsService {
     @Autowired
     FacadeModele facadeModele;
 
-    @Autowired
-    BCryptPasswordEncoder passwordEncoder;
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
@@ -23,7 +21,7 @@ public class CostumUsers implements UserDetailsService {
             Utilisateur u = facadeModele.getUtilisateurByEmail(username);
             UserDetails userDetails = User.builder()
                     .username(u.getLogin())
-                    .password(passwordEncoder.encode(u.getPassword()))
+                    .password(u.getPassword())
                     .roles(u.getRoles())
                     .build();
             return userDetails;

@@ -26,14 +26,12 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
     protected void configure(HttpSecurity http) throws Exception {
         http.csrf().disable()
                 .authorizeRequests()
-                .antMatchers(HttpMethod.POST,"/api/gestionprojets/utilisateur").permitAll()
-                .antMatchers(HttpMethod.GET,"/api/gestionprojets/utilisateurs/*").authenticated()
+                .antMatchers(HttpMethod.POST,"/api/gestionprojets/utilisateurs").permitAll()
                 .antMatchers(HttpMethod.GET,"/api/gestionprojets/utilisateurs").hasRole("PROFESSEUR")
                 .antMatchers(HttpMethod.POST,"/api/gestionprojets/projets").hasRole("PROFESSEUR")
-                .antMatchers(HttpMethod.GET,"/api/gestionprojets/projets/*").authenticated()
-                .antMatchers(HttpMethod.GET,"/api/gestionprojets/projets/*/groupes").authenticated()
-                .antMatchers(HttpMethod.PUT,"/api/projets/*/groupes/*").hasRole("ETUDIANT")
-                .antMatchers(HttpMethod.DELETE,"/api/projets/*/groupes/*").hasRole("ETUDIANT")
+                .antMatchers(HttpMethod.PUT,"/api/gestionprojets/projets/{idprojet}/groupes/{idGroupe}").hasRole("ETUDIANT")
+                .antMatchers(HttpMethod.DELETE,"/api/gestionprojets/projets/{idprojet}/groupes/{idGroupe}").hasRole("ETUDIANT")
+                .anyRequest().authenticated()
                 .and().httpBasic()
                 .and().sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS);
     }

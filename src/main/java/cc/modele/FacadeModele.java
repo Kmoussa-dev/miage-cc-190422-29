@@ -83,8 +83,8 @@ public class FacadeModele {
      */
 
     public void reInitFacade(){
-        utilisateurs=new HashMap<>();
-        mapUtilisateurs=new HashMap<>();
+        utilisateurs.clear();
+        mapUtilisateurs.clear();
         Utilisateur.resetID();
     }
 
@@ -93,12 +93,7 @@ public class FacadeModele {
      * @return
      */
     public Collection<Utilisateur> getAllUtilisateurs() {
-        Collection<Utilisateur> utilisateursList = new ArrayList<>();
-        BiConsumer<String,Utilisateur> action = (String login,Utilisateur utilisateur) -> {
-            utilisateursList.add(utilisateur);
-        };
-        utilisateurs.forEach(action);
-        return utilisateursList;
+       return utilisateurs.values();
     }
 
     /**
